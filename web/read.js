@@ -1,7 +1,7 @@
 'use strict';
 
 import { prepareSvg, rejectedNotice, wire, draft, mountLightbox } from './lib/diagram.mjs';
-import { parseStem, stemOf, ghRaw, loadIndex, removeEntry, specRows, categoryLabel, STATE_TEXT } from './lib/library.mjs';
+import { parseStem, stemOf, ghRaw, loadIndex, removeEntry, reanalyze, specRows, categoryLabel, STATE_TEXT } from './lib/library.mjs';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -138,6 +138,25 @@ function removeButton(cfg, stem, repo) {
   return b;
 }
 
+function reanalyzeButton(cfg, url, repo) {
+  const b = el('button', 're', '重新分析'); b.type = 'button';
+  b.onclick = async () => {
+    if (!confirm(`重新分析 ${repo}？\n會在收藏庫的 Actions 重跑一次（約 3–9 分鐘），完成後重新整理這頁就會看到新版。`)) return;
+    b.disabled = true; b.textContent = '送出中…';
+    try {
+      await reanalyze(cfg, url);
+      b.textContent = '已送出';
+    } catch (e) {
+      b.disabled = false; b.textContent = '重新分析';
+      alert(e.status === 401 ? `送出失敗：${STATE_TEXT.auth}` :
+        e.status === 403 ? '送出失敗：token 沒有 Actions 權限。到 GitHub 的 token 設定加上 Actions: Read and write（token 不用換）。' :
+        e.status === 404 || e.status === 422 ? '送出失敗：收藏庫找不到可手動觸發的 repobox.yml。' :
+        e.status ? `送出失敗（GitHub 回應 ${e.status}），稍後再試。` : `送出失敗：${STATE_TEXT.unavailable}`);
+    }
+  };
+  return b;
+}
+
 function renderRecord(cfg, stem, rec, svgRes, legacy) {
   const repo = text(rec.repo) || stem;
   const h1 = el('h1', null, repo); h1.title = repo;
@@ -147,7 +166,7 @@ function renderRecord(cfg, stem, rec, svgRes, legacy) {
     cell('收藏日', day(lastSeen(rec)))];
   if (/^https:\/\/github\.com\//.test(text(rec.url))) {
     const gh = el('a', 'gh', 'GitHub ↗'); gh.href = rec.url; gh.target = '_blank'; gh.rel = 'noopener';
-    parts.push(gh);
+    parts.push(gh, reanalyzeButton(cfg, rec.url, repo));
   }
   parts.push(removeButton(cfg, stem, repo));
   $('tblock').replaceChildren(...parts);

@@ -264,3 +264,22 @@ test('removeEntry leaves the README count alone when index.json has no entries a
     assert.ok(!rd.includes('old__one') && rd.includes('\n2 個 repo'), body);
   }
 });
+
+test('reanalyze dispatches the library workflow on the default branch with the repo url', async () => {
+  const { reanalyze } = await import('../lib/library.mjs');
+  const calls = [];
+  const fetchFor = (status) => async (url, opts = {}) => {
+    const path = url.replace('https://api.github.com/repos/me/lib', '');
+    calls.push({ method: opts.method || 'GET', path, body: opts.body ? JSON.parse(opts.body) : null });
+    if (path === '') return new Response(JSON.stringify({ default_branch: 'trunk' }), { status: 200 });
+    return new Response(status === 204 ? null : '{"message":"Resource not accessible by personal access token"}', { status });
+  };
+  await reanalyze(CFG, 'https://github.com/Owner/Repo', fetchFor(204));
+  const post = calls.find((c) => c.method === 'POST');
+  assert.equal(post.path, '/actions/workflows/repobox.yml/dispatches');
+  assert.deepEqual(post.body, { ref: 'trunk', inputs: { url: 'https://github.com/Owner/Repo' } });
+  await assert.rejects(reanalyze(CFG, 'https://github.com/Owner/Repo', fetchFor(403)), (e) => e.status === 403);
+  calls.length = 0;
+  await assert.rejects(reanalyze(CFG, 'https://evil.example/Owner/Repo', fetchFor(204)), (e) => e.status === 400);
+  assert.equal(calls.length, 0);
+});

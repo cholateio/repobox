@@ -150,6 +150,18 @@ export async function removeEntry(cfg, stem, repoName, fetchImpl = fetch) {
   throw new RemoveError(409);
 }
 
+// Coupled with the library repo's .github/workflows/repobox.yml (also in repobox-library-template): file name
+// and the workflow_dispatch input `url`. Needs Actions: write on the token; throws RemoveError on any failure.
+export async function reanalyze(cfg, url, fetchImpl = fetch) {
+  if (!/^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+$/.test(url)) throw new RemoveError(400);
+  const branch = must(await ghJson(cfg, 'GET', '', null, fetchImpl)).default_branch;
+  const res = await fetchImpl(`${API}/${cfg.repo}/actions/workflows/repobox.yml/dispatches`, {
+    method: 'POST', cache: 'no-cache', headers: { ...headers(cfg, 'application/vnd.github+json'), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: branch, inputs: { url } }),
+  });
+  if (res.status !== 204) throw new RemoveError(res.status);
+}
+
 const time = (iso) => { const t = Date.parse(iso); return Number.isNaN(t) ? 0 : t; };
 
 export function mergeLibrary(index, history, lib) {

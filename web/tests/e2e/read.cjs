@@ -173,7 +173,37 @@ const SHOTS = process.env.SHOTS || '';
     o = await open({ vp: { width: 390, height: 844 } });
     const rm = await o.page.evaluate(() => { const r = document.querySelector('.tblock .rm').getBoundingClientRect(), g = document.querySelector('.tblock .gh').getBoundingClientRect(); return { sameRow: Math.abs(r.top - g.top) < 2, h: r.height }; });
     expect('(n) phone: 移除 sits beside the GitHub link', rm.sameRow && rm.h >= 28, JSON.stringify(rm));
+    const row = await o.page.evaluate(() => ['.gh', '.re', '.rm'].map((s) => document.querySelector(`.tblock ${s}`).getBoundingClientRect())
+      .map((r) => ({ top: Math.round(r.top), right: Math.round(r.right), w: Math.round(r.width) })));
+    expect('(o) phone: GitHub / 重新分析 / 移除 share one row inside the screen', row.every((r) => r.top === row[0].top && r.right <= 390 && r.w > 0), JSON.stringify(row));
     await done('(n) phone', o, 'read-phone-rm');
+  }
+
+  {
+    const DISPATCH = '/actions/workflows/repobox.yml/dispatches';
+    const branch = { '': { status: 200, body: JSON.stringify({ default_branch: 'main' }) } };
+    o = await open({ routes: { ...branch, [DISPATCH]: { status: 204, body: '' } } });
+    const posts = [];
+    o.page.on('request', (r) => { if (r.method() === 'POST') posts.push({ url: r.url(), body: r.postData() }); });
+    o.page.once('dialog', (d) => d.dismiss());
+    await o.page.click('.tblock .re'); await o.page.waitForTimeout(300);
+    expect('(o) cancelling the confirm dispatches nothing', posts.length === 0, JSON.stringify(posts));
+    o.page.once('dialog', (d) => d.accept());
+    await o.page.click('.tblock .re'); await o.page.waitForTimeout(500);
+    const sent = posts.find((p) => p.url.endsWith(DISPATCH));
+    expect('(o) confirming dispatches repobox.yml with the repo url',
+      sent && JSON.stringify(JSON.parse(sent.body)) === JSON.stringify({ ref: 'main', inputs: { url: JSON.parse(ENTRY).url } }), JSON.stringify(posts));
+    const btn = await o.page.evaluate(() => { const b = document.querySelector('.tblock .re'); return { text: b.textContent, disabled: b.disabled }; });
+    expect('(o) the button then reads 已送出 and stays disabled', btn.text === '已送出' && btn.disabled, JSON.stringify(btn));
+    await done('(o)', o, 'read-reanalyze');
+    o = await open({ routes: { ...branch, [DISPATCH]: { status: 403, body: '{"message":"Resource not accessible by personal access token"}' } } });
+    const msgs = [];
+    o.page.on('dialog', (d) => { msgs.push(d.message()); d.type() === 'confirm' ? d.accept() : d.dismiss(); });
+    await o.page.click('.tblock .re'); await o.page.waitForTimeout(500);
+    const after = await o.page.evaluate(() => { const b = document.querySelector('.tblock .re'); return { text: b.textContent, disabled: b.disabled }; });
+    expect('(o) a token without Actions access says so and re-enables the button',
+      msgs.length === 2 && msgs[1].includes('Actions: Read and write') && after.text === '重新分析' && !after.disabled, JSON.stringify({ msgs, after }));
+    await done('(o) 403', o);
   }
 
   o = await open({ scheme: 'dark' });

@@ -48,7 +48,7 @@
 
 ### 3. 每台手機/電腦裝置進入第一步的網頁設定一次
 
-1. GitHub 頭像 **Settings → Developer settings → Personal access token → Fine-grained tokens** 建一把 token：只選私人的 `repobox-library`，權限只開 **Contents: Read and write**。
+1. GitHub 頭像 **Settings → Developer settings → Personal access token → Fine-grained tokens** 建一把 token：只選私人的 `repobox-library`，權限只開 **Contents: Read and write** 和 **Actions: Read and write**（後者給閱讀頁的「重新分析」按鈕用）。
 2. 打開收藏網頁的設定，填上 `<帳號>/repobox-library` 和這把 token。
 3. Android 把網頁加到主畫面，分享選單就有 RepoBox；電腦把網頁上的書籤按鈕拖到書籤列。
 

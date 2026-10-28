@@ -48,7 +48,7 @@ The page will be at `https://<username>.github.io/repobox/`.
 
 ### 3. Set up each phone or computer once, on the page from step 1
 
-1. From your GitHub avatar, go to **Settings → Developer settings → Personal access token → Fine-grained tokens** and create a token: select only your private `repobox-library` and grant only **Contents: Read and write**.
+1. From your GitHub avatar, go to **Settings → Developer settings → Personal access token → Fine-grained tokens** and create a token: select only your private `repobox-library` and grant only **Contents: Read and write** and **Actions: Read and write** (the latter is for the reading page's 重新分析 (re-analyze) button).
 2. Open the collection page's settings and enter `<username>/repobox-library` and this token.
 3. On Android, add the page to your home screen and RepoBox appears in the share menu; on a computer, drag the bookmark button on the page to your bookmarks bar.
 

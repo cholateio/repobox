@@ -52,7 +52,7 @@
 1. **建立收藏 repo：** 從公開範本 `cholateio/repobox-library-template` 按 Use this template 建私人 repo。範本只有 stub workflow（`uses:` 釘上游 `cholateio/repobox` 的 40 字元 commit SHA，不能是分支名）、預設 `taxonomy.yml` 和幾句說明的 `README.md`；README 與 `index.json` 由第一次 publish 覆寫／建立。想改分析流程的人 fork 後把 `uses:` 換成自己的 repo 和 SHA。
 2. **連結 Claude 訂閱：** 本機執行 `claude setup-token`，把結果存成 repo secret `CLAUDE_CODE_OAUTH_TOKEN`。
    v1 只接訂閱 token；API key 等有人需要再接。
-3. **連結裝置：** 產生一支 fine-grained token（只限這個 repo、Contents 讀寫），在每台裝置的收藏網頁貼上一次。
+3. **連結裝置：** 產生一支 fine-grained token（只限這個 repo、Contents 和 Actions 讀寫；Actions 只給閱讀頁的「重新分析」用），在每台裝置的收藏網頁貼上一次。
    - Android：加到主畫面，之後就會出現在分享選單。
    - 電腦：把網頁上的「收藏」按鈕拖到書籤列（整個書籤列只會有這一個）。
 
@@ -80,6 +80,7 @@
 - **資料：** 用同一份 token 經 Contents API（`Accept: application/vnd.github.raw+json`）讀 `library/<stem>.json` 與 `.svg`，不經任何伺服器。沒有 sidecar 但出現在 `index.json` 的舊條目顯示「舊格式」狀態；缺的欄位整段省略。
 - **版面：** 電腦版（寬 ≥ 1000px）一個畫面看完、整頁不捲動：「← 收藏」在框外，上方一條細長標題列（repo＋副標／分類／授權／收藏日／GitHub；星數只是收藏當下的快照、語言用處不大，都不顯示），左邊架構圖，右邊 480px 欄放「這是什麼（最多 4 行，可展開）＋第一個例子」「使用門檻」規格表，以及「值得借鏡／技術摘要／技術棧」分頁；高度不夠時只有右欄自己捲動。手機照常往下捲，兩側留白 24px。
 - **移除（2026-10-20）：** 標題列最後一格「移除」，確認後瀏覽器用同一份 token 經 Git Data API 送**一個** commit：刪 `library/<stem>.md|json|svg`、從 `index.json` 拿掉該筆、刪掉 README 裡連到它的那一行（README 下次 publish 時整份重產），然後回收藏頁。分支在中途被 publish 推進（ref 更新回 422）就從頭重做，最多 3 次。不動 `inbox/done/`；之後再收同一個 repo 會當成新的重新分析。不經 workflow，所以不用換 SHA。
+- **重新分析（2026-10-28）：** 標題列「GitHub」和「移除」中間一格「重新分析」，確認後用同一份 token 呼叫 `POST /repos/<收藏庫>/actions/workflows/repobox.yml/dispatches`（`ref` = 預設分支，`inputs.url` = 這筆的 `url`），等於在 Actions 頁手動帶網址跑一次 `workflow_dispatch`。token 因此要多開 **Actions: Read and write**；沒開時 GitHub 回 403，按鈕提示去 token 設定加權限。送出後按鈕顯示「已送出」，不輪詢結果，跑完重新整理就是新版。不改 pipeline，所以不用換 SHA。
 - **架構圖：** 打開時播放製圖動畫（分區 → 節點 → 連線沿資料流描繪 → 標籤）。點圖開燈箱，可縮放、拖曳，點節點看它和誰相連。
 - **SVG 安全：** 內嵌前在瀏覽器再過一次與 `validate.py` 相同的元素／屬性白名單。沒通過就**不顯示**，只放提示與 GitHub 原檔連結；絕不把它放進 `blob:`、`data:`、`<img>`、`<object>` 等任何同源可開啟的網址（直接打開會變成獨立 SVG 文件並執行其中腳本）。
 - **測試：** 純邏輯（`web/lib/*.mjs`）用 `node --test` 在 CI 跑；版面、信任檢查與錯誤狀態用 `web/tests/e2e/*.cjs`（Playwright）在本機跑。
@@ -148,7 +149,7 @@ stack: [TypeScript, Node.js]
 - `.json` 內容：上面所有欄位加 `stars_at`、閱讀頁用的 `intro`、`examples`、`requirements`、`summary`、`highlights`、`sightings`（`{id, at, source, note}`，以 `id` 即收藏檔名為身分，重跑不會重複追加）、`analyzed_at`、`analysis`（model、turns、wall_s、rounds、deepwiki、diagram）。2026-10-18 以前的條目把這些放在 frontmatter，讀取時會合併，下次寫回時搬進 `.json`。
 - Action 只改 frontmatter 與 auto 標記之間的內容；不再產生「我的筆記」區（2026-10-18 使用者決定拿掉），但 end 標記之後若有人手寫內容，仍逐 byte 保留。
 - 來自模型或 GitHub metadata 的文字一律轉成純文字並跳脫 Markdown；裸網址與 email 包成 code span，不會變成可點的連結。
-- 同一個 repo 再收一次：只追加一筆 `sightings` 並更新星數，不重畫圖。重新分析靠 `workflow_dispatch`。
+- 同一個 repo 再收一次：只追加一筆 `sightings` 並更新星數，不重畫圖。重新分析靠 `workflow_dispatch`（閱讀頁的「重新分析」按鈕也是觸發它）。
 - 內文只用標準 Markdown，不用 `[[wikilink]]` 等 Obsidian 專屬語法。
 
 ## 分析管線
