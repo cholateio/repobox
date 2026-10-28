@@ -4,7 +4,7 @@
 export const STEM_RE = /^[a-z0-9._-]+__[a-z0-9._-]+$/;
 const API = 'https://api.github.com/repos';
 
-export const CATEGORY_LABEL = { 'agent-framework': 'Agent 框架', 'mcp-server': 'MCP 伺服器', 'dev-tool': '開發工具',
+export const CATEGORY_LABEL = { 'agent-framework': 'Agent 框架', 'mcp-server': 'MCP 伺服器', 'agent-skill': 'Agent 技能', 'dev-tool': '開發工具',
   'model-inference': '模型推論', 'data-processing': '資料處理', frontend: '前端', infrastructure: '基礎設施', game: '遊戲',
   'desktop-app': '桌面應用', other: '其他' };
 
